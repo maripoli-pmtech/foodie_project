@@ -47,6 +47,52 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST() {
-  return NextResponse.json({ message: 'TODO' }, { status: 501 })
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { title, description, instructions, servings, prepTime, cookTime, tags, ingredients } = body
+
+    const missingFields: string[] = []
+    if (!title?.trim()) missingFields.push('title')
+    if (!instructions?.trim()) missingFields.push('instructions')
+    if (!Array.isArray(ingredients) || ingredients.length === 0) missingFields.push('ingredients')
+
+    if (missingFields.length > 0) {
+      return NextResponse.json(
+        { error: 'Missing required fields', fields: missingFields },
+        { status: 400 }
+      )
+    }
+
+    const recipe = await prisma.recipe.create({
+      data: {
+        title: title.trim(),
+        description: description?.trim() || null,
+        instructions: instructions.trim(),
+        servings: Number(servings) || 4,
+        prepTime: prepTime ? Number(prepTime) : null,
+        cookTime: cookTime ? Number(cookTime) : null,
+        tags: tags ?? [],
+        ingredients: {
+          create: ingredients.map((ing: { ingredientName: string; quantity: number; unit: string; notes?: string }) => ({
+            quantity: Number(ing.quantity),
+            unit: ing.unit,
+            notes: ing.notes?.trim() || null,
+            ingredient: {
+              connectOrCreate: {
+                where: { name: ing.ingredientName.trim().toLowerCase() },
+                create: { name: ing.ingredientName.trim().toLowerCase() },
+              },
+            },
+          })),
+        },
+      },
+      include: recipeInclude,
+    })
+
+    return NextResponse.json({ recipe }, { status: 201 })
+  } catch (error) {
+    console.error('[POST /api/recipes]', error)
+    return NextResponse.json({ error: 'Failed to create recipe' }, { status: 500 })
+  }
 }
