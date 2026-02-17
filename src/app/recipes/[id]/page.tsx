@@ -67,8 +67,8 @@ export default async function RecipeDetailPage({ params }: Props) {
           )}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Button variant="outline" size="sm" disabled>
-            Edit
+          <Button asChild variant="outline" size="sm">
+            <Link href={`/recipes/${recipe.id}/edit`}>Edit</Link>
           </Button>
           <DeleteRecipeButton recipeId={recipe.id} />
         </div>
