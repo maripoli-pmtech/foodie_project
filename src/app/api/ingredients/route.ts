@@ -1,6 +1,73 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+import { INGREDIENT_CATEGORIES } from '@/lib/types'
 
-// TODO: implement
-export async function GET() {
-  return NextResponse.json({ message: 'Ingredients API' })
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = request.nextUrl
+    const search = searchParams.get('search')?.trim()
+    const category = searchParams.get('category')?.trim()
+    const limitParam = searchParams.get('limit')
+    const limit = Math.min(limitParam ? parseInt(limitParam, 10) || 20 : 20, 50)
+
+    const ingredients = await prisma.ingredient.findMany({
+      where: {
+        ...(search && {
+          name: { contains: search.toLowerCase(), mode: 'insensitive' },
+        }),
+        ...(category && { category }),
+      },
+      include: {
+        _count: { select: { recipes: true } },
+      },
+      orderBy: { name: 'asc' },
+      take: limit,
+    })
+
+    return NextResponse.json({ ingredients })
+  } catch (error) {
+    console.error('[GET /api/ingredients]', error)
+    return NextResponse.json({ error: 'Failed to fetch ingredients' }, { status: 500 })
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    const { name, category, defaultUnit } = body
+
+    if (!name?.trim()) {
+      return NextResponse.json({ error: 'Name is required' }, { status: 400 })
+    }
+
+    if (category && !INGREDIENT_CATEGORIES.includes(category)) {
+      return NextResponse.json(
+        { error: `Invalid category. Must be one of: ${INGREDIENT_CATEGORIES.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
+    const normalizedName = name.trim().toLowerCase()
+
+    const existing = await prisma.ingredient.findUnique({ where: { name: normalizedName } })
+    if (existing) {
+      return NextResponse.json(
+        { error: 'Ingredient already exists', ingredient: existing },
+        { status: 409 }
+      )
+    }
+
+    const ingredient = await prisma.ingredient.create({
+      data: {
+        name: normalizedName,
+        category: category ?? null,
+        defaultUnit: defaultUnit?.trim() || null,
+      },
+    })
+
+    return NextResponse.json({ ingredient }, { status: 201 })
+  } catch (error) {
+    console.error('[POST /api/ingredients]', error)
+    return NextResponse.json({ error: 'Failed to create ingredient' }, { status: 500 })
+  }
 }
