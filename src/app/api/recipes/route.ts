@@ -16,12 +16,20 @@ export async function GET(request: NextRequest) {
     const ingredient = searchParams.get('ingredient')?.trim()
     const ingredientsParam = searchParams.get('ingredients')?.trim()
     const tag = searchParams.get('tag')?.trim()
+    const tagsParam = searchParams.get('tags')?.trim()
 
     // Parse multiple ingredients (comma-separated)
     const ingredientNames: string[] = ingredientsParam
       ? ingredientsParam.split(',').map(i => i.trim()).filter(Boolean)
       : ingredient
         ? [ingredient]
+        : []
+
+    // Parse multiple tags (comma-separated); fall back to singular `tag` param
+    const tags: string[] = tagsParam
+      ? tagsParam.split(',').map(t => t.trim()).filter(Boolean)
+      : tag
+        ? [tag]
         : []
 
     const where = {
@@ -39,8 +47,8 @@ export async function GET(request: NextRequest) {
           },
         })),
       }),
-      ...(tag && {
-        tags: { has: tag },
+      ...(tags.length > 0 && {
+        tags: { hasEvery: tags },
       }),
     }
 
