@@ -14,20 +14,30 @@ export async function GET(request: NextRequest) {
     const { searchParams } = request.nextUrl
     const search = searchParams.get('search')?.trim()
     const ingredient = searchParams.get('ingredient')?.trim()
+    const ingredientsParam = searchParams.get('ingredients')?.trim()
     const tag = searchParams.get('tag')?.trim()
+
+    // Parse multiple ingredients (comma-separated)
+    const ingredientNames: string[] = ingredientsParam
+      ? ingredientsParam.split(',').map(i => i.trim()).filter(Boolean)
+      : ingredient
+        ? [ingredient]
+        : []
 
     const where = {
       ...(search && {
         title: { contains: search, mode: 'insensitive' as const },
       }),
-      ...(ingredient && {
-        ingredients: {
-          some: {
-            ingredient: {
-              name: { contains: ingredient, mode: 'insensitive' as const },
+      ...(ingredientNames.length > 0 && {
+        AND: ingredientNames.map(name => ({
+          ingredients: {
+            some: {
+              ingredient: {
+                name: { contains: name, mode: 'insensitive' as const },
+              },
             },
           },
-        },
+        })),
       }),
       ...(tag && {
         tags: { has: tag },

@@ -7,6 +7,7 @@ import { Plus, Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { RecipeCard } from "@/components/RecipeCard"
+import { IngredientFilterSelect } from "@/components/IngredientFilterSelect"
 import { useDebounce } from "@/hooks/useDebounce"
 import type { RecipeWithIngredients } from "@/lib/types"
 
@@ -18,21 +19,25 @@ export default function RecipeListClient({ initialRecipes }: RecipeListClientPro
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialSearch = searchParams.get("search") || ""
+  const initialIngredients = searchParams.get("ingredients")?.split(",").filter(Boolean) || []
 
   const [searchQuery, setSearchQuery] = useState(initialSearch)
+  const [ingredientFilters, setIngredientFilters] = useState<string[]>(initialIngredients)
   const [recipes, setRecipes] = useState<RecipeWithIngredients[]>(initialRecipes)
   const [isLoading, setIsLoading] = useState(false)
 
   const debouncedSearch = useDebounce(searchQuery, 400)
 
-  // Fetch recipes when debounced search changes
+  // Fetch recipes when debounced search or ingredient filters change
   useEffect(() => {
     const fetchRecipes = async () => {
       setIsLoading(true)
       try {
-        const url = debouncedSearch.trim()
-          ? `/api/recipes?search=${encodeURIComponent(debouncedSearch.trim())}`
-          : "/api/recipes"
+        const params = new URLSearchParams()
+        if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim())
+        if (ingredientFilters.length > 0) params.set("ingredients", ingredientFilters.join(","))
+
+        const url = params.toString() ? `/api/recipes?${params.toString()}` : "/api/recipes"
 
         const res = await fetch(url)
         if (res.ok) {
@@ -46,19 +51,35 @@ export default function RecipeListClient({ initialRecipes }: RecipeListClientPro
       }
     }
 
-    // Update URL with search param
-    if (debouncedSearch.trim()) {
-      router.replace(`/recipes?search=${encodeURIComponent(debouncedSearch.trim())}`, { scroll: false })
-    } else {
-      router.replace("/recipes", { scroll: false })
-    }
+    // Update URL with all params
+    const params = new URLSearchParams()
+    if (debouncedSearch.trim()) params.set("search", debouncedSearch.trim())
+    if (ingredientFilters.length > 0) params.set("ingredients", ingredientFilters.join(","))
+
+    const url = params.toString() ? `/recipes?${params.toString()}` : "/recipes"
+    router.replace(url, { scroll: false })
 
     fetchRecipes()
-  }, [debouncedSearch, router])
+  }, [debouncedSearch, ingredientFilters, router])
 
   const handleClearSearch = () => {
     setSearchQuery("")
   }
+
+  const handleAddIngredientFilter = (name: string) => {
+    setIngredientFilters((prev) => [...prev, name])
+  }
+
+  const handleRemoveIngredientFilter = (name: string) => {
+    setIngredientFilters((prev) => prev.filter((n) => n !== name))
+  }
+
+  const handleClearAllFilters = () => {
+    setSearchQuery("")
+    setIngredientFilters([])
+  }
+
+  const hasActiveFilters = debouncedSearch.trim() || ingredientFilters.length > 0
 
   return (
     <div className="py-6">
@@ -96,28 +117,42 @@ export default function RecipeListClient({ initialRecipes }: RecipeListClientPro
         )}
       </div>
 
+      {/* Ingredient filter */}
+      <div className="mt-4 max-w-md">
+        <IngredientFilterSelect
+          selectedIngredients={ingredientFilters}
+          onAdd={handleAddIngredientFilter}
+          onRemove={handleRemoveIngredientFilter}
+        />
+      </div>
+
       {/* Results count */}
-      <div className="mt-4 text-sm text-gray-600">
-        {debouncedSearch.trim() ? (
-          <span>
-            {recipes.length} recipe{recipes.length !== 1 ? "s" : ""} found for &quot;{debouncedSearch.trim()}&quot;
-          </span>
-        ) : (
-          <span>Showing {recipes.length} recipe{recipes.length !== 1 ? "s" : ""}</span>
+      <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
+        <span>
+          {recipes.length} recipe{recipes.length !== 1 ? "s" : ""}
+          {debouncedSearch.trim() && ` matching "${debouncedSearch.trim()}"`}
+          {ingredientFilters.length > 0 && ` with ${ingredientFilters.join(" and ")}`}
+        </span>
+        {hasActiveFilters && (
+          <Button variant="ghost" size="sm" onClick={handleClearAllFilters} className="h-auto p-1 text-xs">
+            Clear all
+          </Button>
         )}
       </div>
 
       {/* Recipe grid */}
       {recipes.length === 0 ? (
         <div className="mt-16 flex flex-col items-center gap-4 text-center">
-          {debouncedSearch.trim() ? (
+          {hasActiveFilters ? (
             <>
               <p className="text-lg text-gray-500">
-                No recipes found for &quot;{debouncedSearch.trim()}&quot;
+                No recipes found
+                {debouncedSearch.trim() && ` for "${debouncedSearch.trim()}"`}
+                {ingredientFilters.length > 0 && ` with ${ingredientFilters.join(" and ")}`}
               </p>
-              <p className="text-sm text-gray-400">Try a different search term</p>
-              <Button variant="outline" onClick={handleClearSearch}>
-                Clear search
+              <p className="text-sm text-gray-400">Try different filters</p>
+              <Button variant="outline" onClick={handleClearAllFilters}>
+                Clear all filters
               </Button>
             </>
           ) : (
