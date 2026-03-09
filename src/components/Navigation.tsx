@@ -2,18 +2,19 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, BookOpen, Calendar, ShoppingCart, UtensilsCrossed } from "lucide-react"
+import { BookOpen, Calendar, ShoppingCart, UtensilsCrossed, Carrot } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const navLinks = [
   { href: "/recipes", label: "Recipes", icon: BookOpen },
+  { href: "/ingredients", label: "Ingredients", icon: Carrot },
   { href: "/planner", label: "Planner", icon: Calendar },
   { href: "/shopping", label: "Shopping List", icon: ShoppingCart },
 ]
 
 const mobileLinks = [
-  { href: "/", label: "Home", icon: Home },
   { href: "/recipes", label: "Recipes", icon: BookOpen },
+  { href: "/ingredients", label: "Ingredients", icon: Carrot },
   { href: "/planner", label: "Planner", icon: Calendar },
   { href: "/shopping", label: "Shopping", icon: ShoppingCart },
 ]

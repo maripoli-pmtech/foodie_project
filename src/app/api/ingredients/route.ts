@@ -8,23 +8,37 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search')?.trim()
     const category = searchParams.get('category')?.trim()
     const limitParam = searchParams.get('limit')
-    const limit = Math.min(limitParam ? parseInt(limitParam, 10) || 20 : 20, 50)
+    const offsetParam = searchParams.get('offset')
+    const limit = Math.min(limitParam ? parseInt(limitParam, 10) || 25 : 25, 100)
+    const offset = offsetParam ? Math.max(parseInt(offsetParam, 10) || 0, 0) : 0
 
-    const ingredients = await prisma.ingredient.findMany({
-      where: {
-        ...(search && {
-          name: { contains: search.toLowerCase(), mode: 'insensitive' },
-        }),
-        ...(category && { category }),
-      },
-      include: {
-        _count: { select: { recipes: true } },
-      },
-      orderBy: { name: 'asc' },
-      take: limit,
-    })
+    // "uncategorized" is a special filter value meaning category IS NULL
+    const categoryFilter =
+      category === 'uncategorized'
+        ? { category: null }
+        : category
+          ? { category }
+          : {}
 
-    return NextResponse.json({ ingredients })
+    const where = {
+      ...(search && { name: { contains: search.toLowerCase(), mode: 'insensitive' as const } }),
+      ...categoryFilter,
+    }
+
+    const [ingredients, total, allTotal, uncategorized] = await Promise.all([
+      prisma.ingredient.findMany({
+        where,
+        include: { _count: { select: { recipes: true } } },
+        orderBy: { name: 'asc' },
+        take: limit,
+        skip: offset,
+      }),
+      prisma.ingredient.count({ where }),
+      prisma.ingredient.count(),
+      prisma.ingredient.count({ where: { category: null } }),
+    ])
+
+    return NextResponse.json({ ingredients, total, allTotal, uncategorized })
   } catch (error) {
     console.error('[GET /api/ingredients]', error)
     return NextResponse.json({ error: 'Failed to fetch ingredients' }, { status: 500 })
