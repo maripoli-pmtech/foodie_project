@@ -6,7 +6,6 @@ import Link from "next/link"
 import { Plus, Search, X, Loader2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
 import { RecipeCard } from "@/components/RecipeCard"
 import { IngredientFilterSelect } from "@/components/IngredientFilterSelect"
 import { useDebounce } from "@/hooks/useDebounce"
@@ -103,6 +102,20 @@ export default function RecipeListClient({ initialRecipes }: RecipeListClientPro
   const hasActiveFilters =
     debouncedSearch.trim() || ingredientFilters.length > 0 || activeTags.length > 0
 
+  function filterDescription() {
+    const parts: string[] = []
+    if (debouncedSearch.trim()) parts.push(`matching "${debouncedSearch.trim()}"`)
+    if (ingredientFilters.length > 0) parts.push(`with ${ingredientFilters.join(" and ")}`)
+    if (activeTags.length > 0) parts.push(`tagged ${activeTags.map(t => `#${t}`).join(", ")}`)
+    return parts.join(", ")
+  }
+
+  function buildFilterSummary(count: number) {
+    const desc = filterDescription()
+    if (!desc) return `Showing all ${count} recipe${count !== 1 ? "s" : ""}`
+    return `${count} recipe${count !== 1 ? "s" : ""} ${desc}`
+  }
+
   return (
     <div className="py-6">
       {/* Header */}
@@ -178,35 +191,13 @@ export default function RecipeListClient({ initialRecipes }: RecipeListClientPro
 
       {/* Results summary */}
       <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
-        <span>
-          {recipes.length} recipe{recipes.length !== 1 ? "s" : ""}
-          {debouncedSearch.trim() && ` matching "${debouncedSearch.trim()}"`}
-          {ingredientFilters.length > 0 && ` with ${ingredientFilters.join(" and ")}`}
-          {activeTags.length > 0 && ` tagged ${activeTags.map(t => `"${t}"`).join(", ")}`}
-        </span>
+        <span>{buildFilterSummary(recipes.length)}</span>
         {hasActiveFilters && (
           <Button variant="ghost" size="sm" onClick={handleClearAllFilters} className="h-auto p-1 text-xs">
-            Clear all
+            Clear all filters
           </Button>
         )}
       </div>
-
-      {/* Active tag chips (quick-remove) */}
-      {activeTags.length > 0 && (
-        <div className="mt-2 flex flex-wrap gap-1.5">
-          {activeTags.map(tag => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className="cursor-pointer gap-1 pr-1.5 hover:bg-gray-200"
-              onClick={() => handleToggleTag(tag)}
-            >
-              {tag}
-              <X className="h-3 w-3" />
-            </Badge>
-          ))}
-        </div>
-      )}
 
       {/* Recipe grid */}
       {recipes.length === 0 ? (
@@ -214,10 +205,7 @@ export default function RecipeListClient({ initialRecipes }: RecipeListClientPro
           {hasActiveFilters ? (
             <>
               <p className="text-lg text-gray-500">
-                No recipes found
-                {debouncedSearch.trim() && ` for "${debouncedSearch.trim()}"`}
-                {ingredientFilters.length > 0 && ` with ${ingredientFilters.join(" and ")}`}
-                {activeTags.length > 0 && ` tagged ${activeTags.map(t => `"${t}"`).join(", ")}`}
+                No recipes found {filterDescription()}
               </p>
               <p className="text-sm text-gray-400">Try different filters</p>
               <Button variant="outline" onClick={handleClearAllFilters}>
