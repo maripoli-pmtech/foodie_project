@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import { IngredientAutocomplete } from "@/components/IngredientAutocomplete"
 import { UNITS, type RecipeFormInput, type RecipeWithIngredients } from "@/lib/types"
 
 type IngredientRow = {
@@ -260,12 +261,10 @@ export function RecipeForm({ initialData, onSubmit, isSubmitting, cancelHref }: 
                 className="grid grid-cols-[1fr_80px_110px_auto] gap-2 items-start"
               >
                 <div className="flex flex-col gap-1">
-                  <Input
+                  <IngredientAutocomplete
                     value={ing.name}
-                    onChange={(e) => updateIngredient(ing.id, "name", e.target.value)}
-                    placeholder="Ingredient name"
-                    aria-label={`Ingredient ${i + 1} name`}
-                    aria-invalid={!!errors[`ing_name_${i}`]}
+                    onChange={(value) => updateIngredient(ing.id, "name", value)}
+                    placeholder="Type ingredient name..."
                   />
                   {errors[`ing_name_${i}`] && (
                     <p className="text-xs text-red-500">{errors[`ing_name_${i}`]}</p>
